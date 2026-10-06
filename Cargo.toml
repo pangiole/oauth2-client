@@ -1,0 +1,15 @@
+[package]
+name = "oauth2-client"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.104"
+axum = { version = "0.8.9", default-features = false, features = ["query", "tokio", "http1"] }
+dotenvy = "0.15.7"
+openidconnect = { version = "4.0.1", features = ["reqwest"] }
+tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "macros", "sync", "fs"] }
+serde = { version = "1.0.229", features = ["derive"] }
+tracing = { version = "0.1.44", default-features = false, features = [] }
+tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt"] }
+

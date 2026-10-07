@@ -4,10 +4,10 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-anyhow = "1.0.104"
+anyhow = { version = "1.0.104" , default-features = false}
 axum = { version = "0.8.9", default-features = false, features = ["query", "tokio", "http1"] }
-dotenvy = "0.15.7"
-openidconnect = { version = "4.0.1", features = ["reqwest"] }
+dotenvy = { version = "0.15.7" , default-features = false }
+openidconnect = { version = "4.0.1", default-features = false, features = ["reqwest", "rustls-tls"] }
 tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "macros", "sync", "fs"] }
 serde = { version = "1.0.229", features = ["derive"] }
 tracing = { version = "0.1.44", default-features = false, features = [] }

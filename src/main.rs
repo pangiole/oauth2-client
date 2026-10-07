@@ -19,7 +19,7 @@ async fn main() -> () {
 
 
 async fn run() -> Result<()> {
-    config::load_app_config()?;
+    config::load()?;
 
     let access_token = oidc::get_access_token().await?;
     info!("access token: {:?}", access_token);

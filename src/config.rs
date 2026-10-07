@@ -1,5 +1,4 @@
 use anyhow::{anyhow, Context, Result};
-use std::env;
 use std::sync::OnceLock;
 use tracing::info;
 
@@ -75,24 +74,43 @@ static CONFIG: OnceLock<AppConfig> = OnceLock::new();
 
 /// Returns the process-wide, read-only configuration.
 ///
-/// # Panics
-/// Panics if `load_app_config` has not been called (or failed) first. This is a
+/// # Panic
+/// Panics if `load` has not been called (or failed) first. This is a
 /// programmer-error invariant, not a recoverable runtime error.
-pub fn get_app_config() -> &'static AppConfig {
-    CONFIG.get().expect("AppConfig not initialized; call load_app_config() first")
+pub fn get() -> &'static AppConfig {
+    CONFIG.get().expect("AppConfig not initialized; call load() first")
 }
 
 
-pub fn load_app_config() -> Result<()> {
+/// Load the configuration from the process environment.
+///
+/// A local `.env` file is loaded as a development convenience, but it is *not*
+/// required: the same variables may already be present in the process
+/// environment (for example when running inside a Docker container). A missing
+/// file is treated as a no-op; only a genuine error (such as a malformed file)
+/// fails startup.
+///
+/// Environment variables take precedence over values in `.env`: `dotenv` only
+/// fills in variables that are not already set, keeping the environment as the
+/// single source of truth (see <https://12factor.net/config>).
+pub fn load() -> Result<()> {
     info!("Loading configuration");
-    dotenvy::dotenv().context("failed to load .env file")?;
+
+    // A missing `.env` is fine: the variables may already be set in the process
+    // environment (e.g. by the shell or a container). Only propagate genuine
+    // errors, such as a malformed file.
+    if let Err(err) = dotenvy::dotenv()
+        && !err.not_found()
+    {
+        return Err(anyhow::Error::new(err).context("failed to load .env file"));
+    }
 
     // We are using the discovery features of the OIDC protocol
-    let issuer_url = env::var("OIDC_ISSUER_URL")
+    let issuer_url = dotenvy::var("OIDC_ISSUER_URL")
         .context("OIDC_ISSUER_URL must be set as environment variable")?;
 
     // Which provider we target, so to apply its specific authorization quirks.
-    let issuer_type = env::var("OIDC_ISSUER_TYPE")
+    let issuer_type = dotenvy::var("OIDC_ISSUER_TYPE")
         .context("OIDC_ISSUER_TYPE must be set as environment variable")?
         .parse::<IssuerType>()?;
 
@@ -101,14 +119,14 @@ pub fn load_app_config() -> Result<()> {
     // Note that these have been produced by the Authorization Server upon registering our client.
     // See https://console.cloud.google.com/auth/overview?project=bubbly-mantis-184512
 
-    let client_id = env::var("OAUTH_CLIENT_ID")
+    let client_id = dotenvy::var("OAUTH_CLIENT_ID")
         .context("OAUTH_CLIENT_ID must be set as environment variable")?;
 
-    let client_secret = env::var("OAUTH_CLIENT_SECRET")
+    let client_secret = dotenvy::var("OAUTH_CLIENT_SECRET")
         .context("OAUTH_CLIENT_SECRET must be set as environment variable")?;
 
     // Space-separated, per the OAuth2 "scope" parameter format.
-    let scopes = env::var("OAUTH_SCOPES")
+    let scopes = dotenvy::var("OAUTH_SCOPES")
         .context("OAUTH_SCOPES must be set as environment variable")?
         .split_whitespace()
         .map(String::from)

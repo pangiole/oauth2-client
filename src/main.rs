@@ -4,17 +4,17 @@ mod oidc;
 mod store;
 
 use anyhow::Result;
+use std::process::ExitCode;
 use tracing::{error, info};
 
 #[tokio::main]
-async fn main() -> () {
+async fn main() -> ExitCode {
     tracing_subscriber::fmt::init();
     if let Err(e) = run().await {
         error!("{}", e);
+        return ExitCode::FAILURE;
     }
-    else {
-        info!("Completed successfully!");
-    }
+    ExitCode::SUCCESS
 }
 
 

@@ -15,7 +15,7 @@ pub enum IssuerType {
     GitHub,
     Auth0,
     Keycloak,
-    Authentik,
+    LinkedIn,
 }
 
 
@@ -27,7 +27,7 @@ impl IssuerType {
             IssuerType::GitHub => "github",
             IssuerType::Auth0 => "auth0",
             IssuerType::Keycloak => "keycloak",
-            IssuerType::Authentik => "authentik",
+            IssuerType::LinkedIn => "linkedin",
         }
     }
 }
@@ -50,10 +50,10 @@ impl std::str::FromStr for IssuerType {
             "github" => Ok(IssuerType::GitHub),
             "auth0" => Ok(IssuerType::Auth0),
             "keycloak" => Ok(IssuerType::Keycloak),
-            "authentik" => Ok(IssuerType::Authentik),
+            "linkedin" => Ok(IssuerType::LinkedIn),
             other => Err(anyhow!(
                 "unknown OIDC_ISSUER_TYPE value '{other}'; expected one of: \
-                 google, github, auth0, keycloak, authentik"
+                 google, github, auth0, keycloak, linkedin"
             )),
         }
     }

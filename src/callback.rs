@@ -13,26 +13,33 @@ use tokio::sync::oneshot::{Sender, Receiver};
 
 use std::sync::Arc;
 use std::sync::Mutex;
-use openidconnect::CsrfToken;
 use serde::Deserialize;
 use tokio::sync::oneshot;
 // TODO use tokio::sync::Mutex;
 use tracing::{info, warn};
 
 
-// Holds shared thread-safe resources for all Axum route handlers.
+// The successful outcome of the `/callback` endpoint: the authorization `code`
+// plus the `state` the Authorization Server echoed back. Handing both to the
+// caller lets it verify the echoed `state` against the CSRF token it generated.
+pub struct CallbackOutcome {
+    pub code: String,
+    pub state: String,
+}
+
+// Holds shared thread-safe resources for the Axum route handlers.
 #[derive(Clone)]
-struct AppState {
-    csrf_token: String,
-    // Carries the authorization code (Ok) or the failure reason (Err) back to the caller.
-    oauth_code_tx: Arc<Mutex<Option<Sender<Result<String>>>>>,
+struct CallbackState {
+    // Carries the callback outcome (Ok) or the failure reason (Err) back to the caller.
+    callback_tx: Arc<Mutex<Option<Sender<Result<CallbackOutcome>>>>>,
     shutdown_signal_tx: Arc<Mutex<Option<Sender<()>>>>
 }
 
 #[derive(Deserialize)]
-struct OAuthCallbackParams {
+struct CallbackParams {
     // The `state` parameter holds the CSRF token we generated and sent with the
-    // authorization request; the Authorization Server echoes it back to us.
+    // authorization request; the Authorization Server echoes it back to us. We
+    // forward it so the caller can verify it against the value it generated.
     state: String,
     // The authorization code is only present on a successful authorization.
     code: Option<String>,
@@ -42,20 +49,16 @@ struct OAuthCallbackParams {
 }
 
 
-// Send the outcome (authorization code or failure reason) down the channel to
-// unblock the caller, then always trigger the graceful shutdown of the ephemeral
-// server. This ensures the server stops on *every* terminal outcome, including
-// failures such as the user denying consent or a CSRF state mismatch.
+// Send the callback outcome (the code and echoed state) or the failure reason
+// down the channel to unblock the caller, then always trigger the graceful
+// shutdown of the ephemeral server. This ensures the server stops on *every*
+// terminal outcome, including failures such as the user denying consent.
 // Returns whether the outcome was sent (i.e. the caller was still waiting).
-fn complete(
-    app_state: AppState,
-    outcome: Result<String>
-) -> bool {
-
+fn complete(app_state: CallbackState, outcome: Result<CallbackOutcome>) -> bool {
     let sent = {
-        let mut oauth_code_tx_guard = app_state.oauth_code_tx.lock().unwrap();
-        if let Some(oauth_code_tx) = oauth_code_tx_guard.take() {
-            oauth_code_tx.send(outcome).is_ok()
+        let mut callback_tx_guard = app_state.callback_tx.lock().unwrap();
+        if let Some(callback_tx) = callback_tx_guard.take() {
+            callback_tx.send(outcome).is_ok()
         }
         else { false }
     };
@@ -70,22 +73,12 @@ fn complete(
 
 
 // Handle the incoming HTTP GET requests hitting the '/callback' endpoint
-async fn handle_callback(
-    Query(params): Query<OAuthCallbackParams>,
-    State(app_state): State<AppState>
-) -> Html<String> {
-
+async fn handle_callback(Query(params): Query<CallbackParams>, State(app_state): State<CallbackState>) -> Html<String> {
     info!("Handling callback");
-
-    // CSRF Guard: Ensure OAuth state returned matches the locally generated CSRF token
-    if params.state != app_state.csrf_token {
-        let _ = complete(app_state, Err(anyhow!("OAuth state mismatch")));
-        return Html("<h1>OAuth State Mismatch Failure! Request Rejected.</h1>".to_string());
-    }
 
     // The Authorization Server may redirect back with an `error` instead of a code
     // (e.g. the user denied consent), in which case there is no code to exchange.
-    let Some(oauth_code) = params.code else {
+    let Some(code) = params.code else {
         let error = params.error.as_deref().unwrap_or("unknown_error");
         let message = format!("Authorization request failed: {}", error);
         warn!("{}", message);
@@ -93,7 +86,9 @@ async fn handle_callback(
         return Html(format!("<h1>{}</h1>", message));
     };
 
-    let sent = complete(app_state, Ok(oauth_code));
+    // Forward both the authorization code and the echoed `state` to the caller;
+    // verifying the state against the CSRF token is up to the caller.
+    let sent = complete(app_state, Ok(CallbackOutcome { code, state: params.state }));
     if sent {
         Html("<h1>Authentication Successful! Return to terminal.</h1>".to_string())
     }
@@ -105,12 +100,7 @@ async fn handle_callback(
 
 // The axum server keeps listening until the graceful-shutdown signal is sent
 // from `handle_callback` once the OAuth code has been received.
-async fn axum_serve(
-    tcp_listener: TcpListener,
-    app_router: Router<()>,
-    shutdown_signal: Receiver<()>
-) {
-
+async fn axum_serve(tcp_listener: TcpListener, app_router: Router<()>, shutdown_signal: Receiver<()>) {
     let result = axum::serve(tcp_listener, app_router)
         .with_graceful_shutdown(async {
             let _ = shutdown_signal.await;
@@ -125,9 +115,7 @@ async fn axum_serve(
 
 // TODO Show how to use tokio::time::timeout on the oneshot::Receiver so the CLI app cancels gracefully if the user abandons login.
 
-pub async fn spawn_endpoint(
-    csrf_token: &CsrfToken
-) -> Result<(String, Receiver<Result<String>>)> {
+pub async fn spawn_endpoint() -> Result<(String, Receiver<Result<CallbackOutcome>>)> {
 
     // Bind a server socket on a port assigned by the underlying operating system
     let local_host = "127.0.0.1";
@@ -137,27 +125,26 @@ pub async fn spawn_endpoint(
 
     info!("Spawning callback endpoint at {}", callback_url);
 
-    // Set up a Tokio channel for OAuth code transmission (Ok = code, Err = failure)
-    let (oauth_code_tx, oauth_code_rx) = oneshot::channel::<Result<String>>();
+    // Set up a Tokio channel for the callback outcome (Ok = code + echoed state, Err = failure)
+    let (callback_tx, callback_rx) = oneshot::channel::<Result<CallbackOutcome>>();
 
     // Set up another Tokio channel for the shutdown signal
     let (shutdown_signal_tx, shutdown_signal_rx) = oneshot::channel::<()>();
 
     // Assemble the application state shared between all Axum routes
-    let app_state = AppState {
-        csrf_token: csrf_token.secret().clone(),
-        oauth_code_tx: Arc::new(Mutex::new(Some(oauth_code_tx))),
+    let callback_state = CallbackState {
+        callback_tx: Arc::new(Mutex::new(Some(callback_tx))),
         shutdown_signal_tx: Arc::new(Mutex::new(Some(shutdown_signal_tx))),
     };
 
     let app_router = Router::new()
         // When an HTTP GET request hits the '/callback' endpoint, handle it by grabbing the auth code
         .route("/callback", get(handle_callback))
-        .with_state(app_state) // Hand a copy of state to all routes
+        .with_state(callback_state) // Hand a copy of state
         ;
 
     // Run the server in the background so the caller can continue immediately
     tokio::spawn(axum_serve(tcp_listener, app_router, shutdown_signal_rx));
 
-    Ok((callback_url, oauth_code_rx))
+    Ok((callback_url, callback_rx))
 }

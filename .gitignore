@@ -1,3 +1,6 @@
 /target
 /.refresh_token
 /.env
+
+# mdBook build output
+/docs/book

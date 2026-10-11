@@ -1,0 +1,18 @@
+[book]
+title = "How-to implement OAuth2 clients in Rust"
+authors = ["Paolo"]
+description = "A small book explaining how to implement an OAuth2 / OIDC client application in Rust language with the Tokio asynchronous runtime"
+language = "en"
+src = "src"
+
+[preprocessor]
+
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output]
+
+[output.html]
+additional-js = ["mermaid.min.js", "mermaid-init.js"]
+site-url = "/oauth2-client/"
+git-repository-url = "https://github.com/pangiole/oauth2-client"

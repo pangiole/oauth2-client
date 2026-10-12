@@ -1,7 +1,7 @@
 [book]
-title = "How-to implement OAuth2 clients in Rust"
-authors = ["Paolo"]
-description = "A small book explaining how to implement an OAuth2 / OIDC client application in Rust language with the Tokio asynchronous runtime"
+title = "Walkthrough an OAuth2 Client in Rust"
+authors = ["Paolo Angioletti"]
+description = "A book explaining how to implement an OAuth2 / OIDC OAuth2 Client application in Rust language with the Tokio asynchronous runtime"
 language = "en"
 src = "src"
 

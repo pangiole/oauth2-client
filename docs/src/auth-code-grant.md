@@ -1,14 +1,17 @@
-# Authorization Code Flow
+{{#include warning.md}}
 
-The Authorization Code flow 
+# Authorization Code Grant
+
+The Authorization Code Grant 
 ([RFC 6749, §4.1](https://www.rfc-editor.org/info/rfc6749/#section-4.1)) is the 
-standard OAuth 2.0 flow for confidential clients, and the one our Rust 
-application falls back to whenever no valid refresh token is available. Because 
-our client requests only the `openid` scope, this same flow doubles as an 
-OpenID Connect *authentication* request: in return for the access token it also 
-receives an identity token (`id_token`) describing who just signed in. It is 
-best understood as two phases, separated by the *channel* each message travels 
-over:
+standard OAuth 2.0 flow for confidential clients, and what our OAuth Client 
+Rust application falls back to whenever no valid refresh token is available. 
+
+Because our client requests only the `openid` scope, this same flow doubles as
+an OpenID Connect *authentication* request: in return for the access token it 
+also receives an identity token (`id_token`) describing who just signed in. It 
+is best understood as two phases, separated by the **channel** each message 
+travels over:
 
 ```mermaid
 sequenceDiagram
@@ -64,6 +67,3 @@ To read the authenticated user's profile, the client finally presents that
 with the user's claims (step 10). The `id_token` already carries the core
 identity (its `sub` claim), while `/userinfo` can supply richer, up-to-date
 profile attributes.
-
-## Scopes
-...

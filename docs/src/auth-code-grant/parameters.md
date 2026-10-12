@@ -1,5 +1,7 @@
+{{#include ../warning.md}}
+
 # Parameters
-The Authorization Code flow's front-channel carries only a handful of 
+The Authorization Code Grant's front-channel carries only a handful of 
 parameters, and each one exists for one of two reasons: to *orchestrate* the
 flow (routing the request and its answer) or to *secure* it (binding the answer
 to the session that started it). The sequence diagram above shows only the
@@ -15,7 +17,7 @@ These parameters are bout who is asking, and where the answer goes:
 
 
 * `client_id`  
-  identifies which client application is asking.
+  identifies which OAuth2 Client application is asking.
 
 
 * `redirect_uri`  
@@ -28,10 +30,13 @@ These parameters are bout who is asking, and where the answer goes:
   identity token plus an access token for the `/userinfo` endpoint.
 
 
-## Security mitigations
+### Scopes
+...
+
+## Vulnerability resolutions
 These additional parameters bind the answer back to the  request and serve 
-the purpose to mitigate security attacks (as better explained in the next 
-section):
+the purpose to resolve vulnerabilities and mitigate security attacks (as 
+better explained in the next section):
 
 * `state`  
   an opaque, unguessable value the client generates and stores before sending 

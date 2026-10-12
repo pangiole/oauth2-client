@@ -1,4 +1,5 @@
 use anyhow::{anyhow, Context, Result};
+use std::path::PathBuf;
 use std::sync::OnceLock;
 use tracing::info;
 
@@ -60,13 +61,55 @@ impl std::str::FromStr for IssuerType {
 }
 
 
+/// The process-wide configuration, assembled once at startup.
+///
+/// Every field is sourced from an environment variable (with a local `.env`
+/// file as an optional convenience — see [`load`]). Once built, the single
+/// instance is shared for the whole program via [`get`].
 pub struct AppConfig {
+    /// The OIDC issuer URL used for provider discovery.
+    ///
+    /// Read from `OIDC_ISSUER_URL`. The client fetches the provider's
+    /// `/.well-known/openid-configuration` document from it to learn the
+    /// authorization, token and userinfo endpoints.
     pub issuer_url: String,
+    /// Which provider we target, so we can apply its authorization quirks.
+    ///
+    /// Read from `OIDC_ISSUER_TYPE` (parsed case-insensitively; see
+    /// [`IssuerType`]). Google is the outlier here: it expects the
+    /// `access_type=offline` and `prompt=consent` parameters instead of the
+    /// standard `offline_access` scope when requesting a refresh token.
     pub issuer_type: IssuerType,
+    /// The public client identifier issued when the app was registered.
+    ///
+    /// Read from `OAUTH_CLIENT_ID`. Together with the client secret it
+    /// authenticates this *confidential* client to the token endpoint.
     pub client_id: String,
+    /// The client secret issued when the app was registered.
+    ///
+    /// Read from `OAUTH_CLIENT_SECRET`. It is presented only on the
+    /// back-channel token exchange, never through the browser, so it stays
+    /// confidential.
     pub client_secret: String,
+    /// The OAuth2 scopes requested on top of the implicit `openid` scope.
+    ///
+    /// Read from `OAUTH_SCOPES` as a space-separated list, split into one
+    /// `String` per scope. The `openid` scope is added automatically by the
+    /// underlying library, so it does not need to be listed here.
     pub scopes: Vec<String>,
+    /// Where the refresh token is persisted on the local filesystem.
+    ///
+    /// Read from `OAUTH_REFRESH_TOKEN_PATH`; may be either an absolute or a
+    /// relative path. It defaults to [`DEFAULT_REFRESH_TOKEN_PATH`] when the
+    /// variable is not set.
+    pub refresh_token_path: PathBuf,
 }
+
+
+/// Fallback location for the refresh token, used when `OAUTH_REFRESH_TOKEN_PATH`
+/// is not set. A relative path is resolved against the current working
+/// directory.
+const DEFAULT_REFRESH_TOKEN_PATH: &str = ".refresh-token";
 
 
 static CONFIG: OnceLock<AppConfig> = OnceLock::new();
@@ -132,12 +175,21 @@ pub fn load() -> Result<()> {
         .map(String::from)
         .collect::<Vec<String>>();
 
+    // Where to persist the refresh token (absolute or relative path).
+    // Unlike the settings above, this one is optional: it silently falls back to
+    // `DEFAULT_REFRESH_TOKEN_PATH` so the client keeps working out of the box.
+    let refresh_token_path = PathBuf::from(
+        dotenvy::var("OAUTH_REFRESH_TOKEN_PATH")
+            .unwrap_or_else(|_| DEFAULT_REFRESH_TOKEN_PATH.to_string()),
+    );
+
     let loaded_config = AppConfig {
         issuer_url,
         issuer_type,
         client_id,
         client_secret,
         scopes,
+        refresh_token_path,
     };
 
     CONFIG

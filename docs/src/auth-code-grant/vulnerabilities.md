@@ -1,5 +1,7 @@
+{{#include ../warning.md}}
+
 # Vulnerabilities
-The Authorization Code flow is not secure by itself: the front-channel is a
+The Authorization Code Grant is not secure by itself: the front-channel is a
 series of plain browser navigations, and the callback is a public URL that
 *anyone* can make a browser visit. Parameters such as `state` and `nonce` were
 added to protect from the following attacks.

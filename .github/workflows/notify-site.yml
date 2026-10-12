@@ -1,0 +1,21 @@
+name: Notify site
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  dispatch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dispatch bump to pangiole.github.io
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.SITE_DISPATCH_TOKEN }}
+          script: |
+            await github.rest.repos.createDispatchEvent({
+              owner: 'pangiole',
+              repo: 'pangiole.github.io',
+              event_type: 'update-books',
+              client_payload: { book: 'oauth2-client', ref: context.sha }
+            });

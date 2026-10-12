@@ -21,7 +21,8 @@ reuses it across runs — so you only sign in through the browser once.
 - Opens the provider's *authorize* URL in the browser.
 - Runs an ephemeral local HTTP server to receive the authorization code.
 - Exchanges the code for tokens, validates the ID token, and stores the refresh
-  token (`.refresh_token`, git-ignored) for the next run.
+  token (at `OAUTH_REFRESH_TOKEN_PATH`, default `.refresh-token`, git-ignored)
+  for the next run.
 
 Supported identity providers (selected via `OIDC_ISSUER_TYPE`):
 `google`, `github`, `auth0`, `keycloak`, `linkedin`.
@@ -43,7 +44,13 @@ OIDC_ISSUER_URL=https://accounts.google.com
 OAUTH_CLIENT_ID=<your-client-id>
 OAUTH_CLIENT_SECRET=<your-client-secret>
 OAUTH_SCOPES=<space-separated-scopes>
+OAUTH_REFRESH_TOKEN_PATH=<absolute-or-relative-path>
 ```
+
+`OAUTH_REFRESH_TOKEN_PATH` is optional and defaults to `.refresh-token`. It may
+be either an absolute or a relative path; any missing intermediate directories
+are created automatically, and the run aborts with a clear error if the path
+cannot be written (for example, due to filesystem permissions).
 
 ```sh
 cargo run

@@ -1,7 +1,9 @@
+{{#include ../warning.md}}
+
 # Channels
-The single most important architectural detail of the Authorization Code flow is
-the *channel* a message travels over, and it dictates what may be carried on each
-leg.
+The single most important architectural detail of the Authorization Code Grant
+is the *channel* a message travels over, and it dictates what may be carried on
+each leg.
 
 ## Front-channel
 The first six steps all travel *through the user's browser*, as plain HTTP 
@@ -69,8 +71,8 @@ async fn run_authorization_code_flow_front_channel(
 
 ## Back-channel
 Steps 7 through 10 go *directly* between the Client App and the OAuth Server,
-bypassing the browser entirely. The token exchange happens here. Because the 
-channel is not exposed publicly, the client can safely present its 
+bypassing the browser entirely. The token exchange happens here. Because the
+channel is not exposed publicly, the client can safely present its
 `client_secret`, and neither the `access_token` nor the `id_token` ever transits
 the user's browser.
 

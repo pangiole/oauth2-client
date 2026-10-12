@@ -3,13 +3,56 @@ name = "oauth2-client"
 version = "0.1.0"
 edition = "2024"
 
-[dependencies]
-anyhow = { version = "1.0.104" , default-features = false}
-axum = { version = "0.8.9", default-features = false, features = ["query", "tokio", "http1"] }
-dotenvy = { version = "0.15.7" , default-features = false }
-openidconnect = { version = "4.0.1", default-features = false, features = ["reqwest", "rustls-tls"] }
-tokio = { version = "1.53.1", default-features = false, features = ["net", "rt-multi-thread", "macros", "sync", "fs"] }
-serde = { version = "1.0.229", features = ["derive"] }
-tracing = { version = "0.1.44", default-features = false, features = [] }
-tracing-subscriber = { version = "0.3.23", default-features = false, features = ["fmt"] }
 
+[dependencies.anyhow]
+    version = "1.0.104"
+    default-features = false
+
+[dependencies.dotenvy]
+    version = "0.15.7"
+    default-features = false
+
+[dependencies.tokio]
+    version = "1.53.1"
+    default-features = false
+    features = [
+        "net",
+        "rt-multi-thread",
+        "macros",
+        "sync",
+        "fs"
+    ]
+
+[dependencies.axum]
+    version = "0.8.9"
+    default-features = false
+    features = [
+        "query",
+        "tokio",
+        "http1"
+    ]
+
+[dependencies.tracing]
+    version = "0.1.44"
+    default-features = false
+
+[dependencies.tracing-subscriber]
+    version = "0.3.23"
+    default-features = false
+    features = [
+        "fmt"
+    ]
+
+[dependencies.serde]
+    version = "1.0.229"
+    features = [
+        "derive"
+    ]
+
+[dependencies.openidconnect]
+    version = "4.0.1"
+    default-features = false
+    features = [
+        "reqwest",
+        "rustls-tls"
+    ]

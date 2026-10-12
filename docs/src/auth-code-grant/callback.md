@@ -1,0 +1,4 @@
+{{#include ../warning.md}}
+
+# Callback
+...
